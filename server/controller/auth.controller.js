@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { upsertSreamUser } from "../lib/stream.js";
 
 export async function signUp(req, res, next) {
   try {
@@ -34,6 +35,17 @@ export async function signUp(req, res, next) {
       fullName,
       profilePic: randomAvatar,
     });
+
+    try {
+      await upsertSreamUser({
+        id: newUser._id.toString(),
+        name: newUser.fullName,
+        image: newUser.profilePic || "",
+      });
+      console.log("Stream user created for: " + newUser.fullName);
+    } catch (error) {
+      console.log("Error create Stream user: " + error);
+    }
 
     const token = jwt.sign(
       { userId: newUser._id },
@@ -108,7 +120,7 @@ export async function signIn(req, res, next) {
 
 export async function signOut(req, res, next) {
   try {
-    res.clearCookie('jwt')
+    res.clearCookie("jwt");
     res.status(200).json({
       success: true,
       message: "Sign Out successfully!",
