@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 export async function signUp(req, res, next) {
   try {
@@ -55,6 +56,65 @@ export async function signUp(req, res, next) {
     });
   } catch (error) {
     console.log("Error in signup controller" + error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+}
+
+export async function signIn(req, res, next) {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "All field are required!",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(401).json({
+        message: "Invalid email or password!",
+      });
+
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect)
+      return res.status(401).json({
+        message: "Invalid email or password!",
+      });
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
+      expiresIn: "7d",
+    });
+
+    res.cookie("jwt", token, {
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true, // prevent XSS attack,
+      sameSite: "strict", // prevent CSRF attack,
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    res.status(200).json({
+      success: true,
+      user: user,
+    });
+  } catch (error) {
+    console.log("Error in signin controller" + error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+}
+
+export async function signOut(req, res, next) {
+  try {
+    res.clearCookie('jwt')
+    res.status(200).json({
+      success: true,
+      message: "Sign Out successfully!",
+    });
+  } catch (error) {
+    console.log("Error in signout controller" + error);
     return res.status(500).json({
       message: "Internal server error",
     });
